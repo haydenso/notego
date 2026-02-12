@@ -1,6 +1,6 @@
-# Notego
+# notego
 
-A lightweight Rust CLI tool to export Apple Notes to Markdown (.md or .mdx) files.
+a lightweight Rust CLI tool to export Apple Notes to Markdown (.md or .mdx) files. useful for blog automations if you like writing in the notes app like myself.
 
 ## Features
 
@@ -19,7 +19,7 @@ A lightweight Rust CLI tool to export Apple Notes to Markdown (.md or .mdx) file
 
 ```bash
 # Clone this repository (replace with the real repo URL)
-git clone https://github.com/OWNER/notego.git
+git clone https://github.com/haydenso/notego.git
 cd notego
 ```
 
@@ -62,15 +62,15 @@ notego --folder "logs" \
 
 ### Command-line options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--folder, -f` | Notes folder name to export (required) | - |
-| `--out, -o` | Output directory path | `./out` |
-| `--ext, -e` | File extension for exported files (`md` or `mdx`) | `md` |
-| `--date, -d` | Date field to use (`created` or `modified`) | `created` |
-| `--desc-lines` | Number of lines to extract for description | `3` |
-| `--attachments` | Include image attachments | `true` |
-| `--dry-run` | Preview without writing files | `false` |
+| Option            | Description                                           | Default     |
+| ----------------- | ----------------------------------------------------- | ----------- |
+| `--folder, -f`  | Notes folder name to export (required)                | -           |
+| `--out, -o`     | Output directory path                                 | `./out`   |
+| `--ext, -e`     | File extension for exported files (`md` or `mdx`) | `md`      |
+| `--date, -d`    | Date field to use (`created` or `modified`)       | `created` |
+| `--desc-lines`  | Number of lines to extract for description            | `3`       |
+| `--attachments` | Include image attachments                             | `true`    |
+| `--dry-run`     | Preview without writing files                         | `false`   |
 
 ## Output format
 
@@ -191,6 +191,7 @@ Example: `on-reinforcement-learning.md`
 ### Image attachments
 
 When `--attachments` is enabled (default), embedded images are:
+
 1. Decoded from base64 data URIs
 2. Saved to `attachments/<note-slug>/img-N.png`
 3. Referenced in markdown with relative paths
@@ -200,6 +201,7 @@ When `--attachments` is enabled (default), embedded images are:
 The first time you run `notego`, macOS will prompt you to allow Terminal (or your shell) to control the Notes app. Click "OK" to grant permission.
 
 If you see an error about permissions:
+
 1. Open System Settings > Privacy & Security > Automation
 2. Ensure your terminal app has permission to control Notes
 
