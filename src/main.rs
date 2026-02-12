@@ -21,7 +21,7 @@ struct Args {
     out: PathBuf,
 
     /// File extension for exported files
-    #[arg(short, long, default_value = "mdx")]
+    #[arg(short, long, default_value = "md")]
     ext: String,
 
     /// Date field to use in frontmatter (created or modified)

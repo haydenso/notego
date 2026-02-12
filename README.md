@@ -1,6 +1,6 @@
 # Notego
 
-A lightweight Rust CLI tool to export Apple Notes to Markdown (.mdx) files.
+A lightweight Rust CLI tool to export Apple Notes to Markdown (.md or .mdx) files.
 
 ## Features
 
@@ -47,7 +47,7 @@ Export all notes from a folder called "logs":
 notego --folder "logs"
 ```
 
-This will create `.mdx` files in the `./out` directory.
+This will create `.md` files in the `./out` directory.
 
 ### Advanced usage
 
@@ -66,7 +66,7 @@ notego --folder "logs" \
 |--------|-------------|---------|
 | `--folder, -f` | Notes folder name to export (required) | - |
 | `--out, -o` | Output directory path | `./out` |
-| `--ext, -e` | File extension for exported files | `mdx` |
+| `--ext, -e` | File extension for exported files (`md` or `mdx`) | `md` |
 | `--date, -d` | Date field to use (`created` or `modified`) | `created` |
 | `--desc-lines` | Number of lines to extract for description | `3` |
 | `--attachments` | Include image attachments | `true` |
@@ -88,9 +88,81 @@ desc: "First few lines of the note content..."
 
 - Bullet points preserved
 - **Formatting** maintained
+- *Italic text* supported
 - Images extracted to `attachments/` folder
 
 ![figure](attachments/on-reinforcement-learning/rl-figure.png)
+
+### Supported Markdown Formatting
+
+The tool preserves all standard Markdown formatting from Apple Notes:
+
+- **Bold text** - `**bold**` or `__bold__`
+- *Italic text* - `*italic*` or `_italic_`
+- ***Bold and italic*** - `***text***`
+- ~~Strikethrough~~ - `~~strikethrough~~`
+- `Inline code` - `` `code` ``
+- [Links](https://example.com) - `[text](url)`
+- Headings (H1-H6) - `# Heading`
+- Ordered lists - `1. Item`
+- Unordered lists - `- Item` or `* Item`
+- Task lists - `- [ ] Todo` or `- [x] Done`
+- Code blocks with syntax highlighting
+- Tables
+- Horizontal rules - `---`
+- > Blockquotes - `> Quote text`
+- Nested blockquotes - `> > Nested quote`
+- Images (extracted to files)
+
+Example with all formatting:
+
+```markdown
+# Main Heading
+
+## Subheading
+
+This is a paragraph with **bold**, *italic*, and ***bold italic*** text.
+You can also use ~~strikethrough~~ and `inline code`.
+
+> This is a blockquote.
+> It can span multiple lines.
+>
+> > Nested blockquotes are supported too.
+
+### Lists
+
+- Unordered item 1
+- Unordered item 2
+  - Nested item
+
+1. Ordered item 1
+2. Ordered item 2
+
+- [ ] Task to do
+- [x] Completed task
+
+### Code Block
+
+\`\`\`python
+def hello():
+    print("Hello, world!")
+\`\`\`
+
+### Table
+
+| Column 1 | Column 2 |
+|----------|----------|
+| Value 1  | Value 2  |
+
+### Links and Images
+
+[Link text](https://example.com)
+
+![Image alt text](attachments/note-slug/img-1.png)
+
+---
+
+Horizontal rule above.
 ```
 
 ### User frontmatter override
@@ -112,9 +184,9 @@ Any field you specify will override the default generated value. Fields you don'
 
 ### File naming
 
-Files are named using the slug: `[slug].mdx`
+Files are named using the slug: `[slug].[ext]` (default: `.md`)
 
-Example: `on-reinforcement-learning.mdx`
+Example: `on-reinforcement-learning.md`
 
 ### Image attachments
 
@@ -166,7 +238,7 @@ notego --folder "Technical Notes" --attachments=false
 3. Converts HTML to Markdown using the `html2md` crate
 4. Extracts base64-encoded images and saves them as separate files
 5. Generates YAML frontmatter from note metadata
-6. Writes `.mdx` files with relative image references
+6. Writes `.md` or `.mdx` files (configurable) with relative image references
 
 ## Troubleshooting
 
