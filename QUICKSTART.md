@@ -45,7 +45,7 @@ notego/
 - Generates frontmatter like:
   ```
   ---
-  title: On China and MAIM
+  title: On Reinforcement Learning
   date: December 01 2025
   desc: "First few lines..."
   ---

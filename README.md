@@ -15,6 +15,14 @@ A lightweight Rust CLI tool to export Apple Notes to Markdown (.mdx) files.
 
 ## Installation
 
+### Clone repository
+
+```bash
+# Clone this repository (replace with the real repo URL)
+git clone https://github.com/OWNER/notego.git
+cd notego
+```
+
 ### Build from source
 
 ```bash
@@ -70,8 +78,8 @@ Each note is exported as a file with YAML frontmatter:
 
 ```markdown
 ---
-title: On China and MAIM
-slug: on-china-and-maim
+title: On Reinforcement Learning
+slug: on-reinforcement-learning
 date: December 01 2025
 desc: "First few lines of the note content..."
 ---
@@ -82,7 +90,7 @@ desc: "First few lines of the note content..."
 - **Formatting** maintained
 - Images extracted to `attachments/` folder
 
-![image](attachments/on-china-and-maim/img-1.png)
+![figure](attachments/on-reinforcement-learning/rl-figure.png)
 ```
 
 ### User frontmatter override
@@ -106,7 +114,7 @@ Any field you specify will override the default generated value. Fields you don'
 
 Files are named using the slug: `[slug].mdx`
 
-Example: `on-china-and-maim.mdx`
+Example: `on-reinforcement-learning.mdx`
 
 ### Image attachments
 
