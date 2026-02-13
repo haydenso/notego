@@ -74,8 +74,13 @@ fn main() -> Result<()> {
 
     // Generate and run JXA script
     let jxa_script = generate_jxa_script(&args.folder);
+
+    // Write script to temp file and execute it
+    let temp_script = "/tmp/notego_script.js";
+    std::fs::write(temp_script, &jxa_script)?;
+
     let output = Command::new("osascript")
-        .args(&["-l", "JavaScript", "-e", &jxa_script])
+        .args(&["-l", "JavaScript", temp_script])
         .output()
         .context("Failed to execute osascript. Make sure you're on macOS.")?;
 
@@ -148,28 +153,32 @@ fn main() -> Result<()> {
 fn generate_jxa_script(folder_name: &str) -> String {
     format!(
         r#"
-ObjC.import('Foundation')
-var Notes = Application('Notes')
-var folderName = "{}"
-var folders = Notes.folders.whose({{name: folderName}})
+var app = Application('Notes');
+app.includeStandardAdditions = true;
+
+var folders = app.folders.whose({{ name: "{}" }});
+
 if (folders.length === 0) {{
-  console.log(JSON.stringify([]))
-}} else {{
-  var notes = folders[0].notes()
-  var out = []
-  for (var i = 0; i < notes.length; i++) {{
-    var n = notes[i]
-    out.push({{
-      id: n.id ? String(n.id()) : "",
-      title: n.name() ? String(n.name()) : "",
-      creationDate: n.creationDate() ? String(n.creationDate()) : "",
-      modificationDate: n.modificationDate() ? String(n.modificationDate()) : "",
-      bodyHTML: n.body() ? String(n.body()) : ""
-    }})
-  }}
-  console.log(JSON.stringify(out))
+    console.log("ERROR: Folder '{}' not found");
+    $.exit(1);
 }}
+
+var targetFolder = folders[0];
+var notes = targetFolder.notes();
+
+var output = notes.map(function (note) {{
+    return {{
+        id: note.id(),
+        title: note.name(),
+        creationDate: note.creationDate().toISOString(),
+        modificationDate: note.modificationDate().toISOString(),
+        bodyHTML: note.body()
+    }};
+}});
+
+console.log(JSON.stringify(output));
 "#,
+        folder_name.replace('"', r#"\""#),
         folder_name.replace('"', r#"\""#)
     )
 }
@@ -253,6 +262,36 @@ fn extract_user_frontmatter(content: &str) -> (UserFrontmatter, String) {
     let mut frontmatter_end_idx = 0;
     let mut frontmatter_delimiters = 0;
 
+    // Helper function to strip quotes (including smart quotes)
+    let strip_quotes = |s: &str| -> String {
+        let mut result = s.to_string();
+        // Strip regular quotes
+        if (result.starts_with('"') && result.ends_with('"'))
+            || (result.starts_with('\'') && result.ends_with('\''))
+        {
+            result = result[1..result.len() - 1].to_string();
+        }
+        // Strip smart double quotes (U+201C and U+201D)
+        let left_dq = "\u{201C}"; // "
+        let right_dq = "\u{201D}"; // "
+        if result.starts_with(left_dq) && result.ends_with(right_dq) {
+            let chars: Vec<char> = result.chars().collect();
+            if chars.len() >= 2 {
+                result = chars[1..chars.len() - 1].iter().collect();
+            }
+        }
+        // Strip smart single quotes (U+2018 and U+2019)
+        let left_sq = "\u{2018}"; // '
+        let right_sq = "\u{2019}"; // '
+        if result.starts_with(left_sq) && result.ends_with(right_sq) {
+            let chars: Vec<char> = result.chars().collect();
+            if chars.len() >= 2 {
+                result = chars[1..chars.len() - 1].iter().collect();
+            }
+        }
+        result
+    };
+
     for (i, line) in lines.iter().enumerate() {
         let trimmed = line.trim();
 
@@ -272,11 +311,7 @@ fn extract_user_frontmatter(content: &str) -> (UserFrontmatter, String) {
         if in_frontmatter {
             if let Some(colon_idx) = trimmed.find(':') {
                 let key = trimmed[..colon_idx].trim();
-                let value = trimmed[colon_idx + 1..]
-                    .trim()
-                    .trim_matches('"')
-                    .trim_matches('\'')
-                    .to_string();
+                let value = strip_quotes(trimmed[colon_idx + 1..].trim());
 
                 match key {
                     "title" => frontmatter.title = Some(value),
@@ -296,8 +331,47 @@ fn extract_user_frontmatter(content: &str) -> (UserFrontmatter, String) {
         &lines[..]
     };
 
-    let cleaned_content = content_lines.join("\n").trim().to_string();
-    (frontmatter, cleaned_content)
+    // Check for inline desc: in the first few lines (if no frontmatter desc was found)
+    let mut desc_line_idx: Option<usize> = None;
+    if frontmatter.desc.is_none() {
+        for (i, line) in content_lines.iter().enumerate() {
+            if i >= 5 {
+                break; // Only check first 5 lines
+            }
+            let trimmed = line.trim();
+            if trimmed.starts_with("desc:") {
+                if let Some(colon_idx) = trimmed.find(':') {
+                    let value = strip_quotes(trimmed[colon_idx + 1..].trim());
+
+                    // Always mark the line for removal
+                    desc_line_idx = Some(i);
+
+                    // Only set frontmatter.desc if value is non-empty
+                    if !value.is_empty() {
+                        frontmatter.desc = Some(value);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    // Remove the desc: line from content if we found one
+    let final_content = if let Some(idx) = desc_line_idx {
+        content_lines
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| *i != idx)
+            .map(|(_, line)| *line)
+            .collect::<Vec<_>>()
+            .join("\n")
+            .trim()
+            .to_string()
+    } else {
+        content_lines.join("\n").trim().to_string()
+    };
+
+    (frontmatter, final_content)
 }
 
 fn strip_title_heading(content: &str, title: &str) -> String {
