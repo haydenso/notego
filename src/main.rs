@@ -60,6 +60,7 @@ struct UserFrontmatter {
     slug: Option<String>,
     date: Option<String>,
     desc: Option<String>,
+    category: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -183,9 +184,27 @@ console.log(JSON.stringify(output));
     )
 }
 
+fn convert_bare_urls_to_links(content: &str) -> String {
+    // Regex to match URLs that are not already in markdown link syntax
+    // This matches URLs on their own lines, preserving trailing whitespace
+    let url_regex = Regex::new(r"(?m)^(https?://[^\s]+)(\s*)$").unwrap();
+
+    url_regex
+        .replace_all(content, |caps: &regex::Captures| {
+            let url = &caps[1];
+            let trailing = &caps[2];
+            // Convert to markdown link format, preserving trailing whitespace
+            format!("[{}]({}){}", url, url, trailing)
+        })
+        .to_string()
+}
+
 fn process_note(note: &Note, args: &Args) -> Result<PathBuf> {
     // Convert HTML to Markdown first
     let mut markdown = html2md::parse_html(&note.body_html);
+
+    // Convert bare URLs to markdown links
+    markdown = convert_bare_urls_to_links(&markdown);
 
     // Parse user-specified frontmatter from the note content
     let (user_frontmatter, content_without_frontmatter) = extract_user_frontmatter(&markdown);
@@ -233,11 +252,18 @@ fn process_note(note: &Note, args: &Args) -> Result<PathBuf> {
         .clone()
         .unwrap_or_else(|| extract_description(&markdown, args.desc_lines));
 
-    // Generate frontmatter
-    let frontmatter = format!(
-        "---\ntitle: {}\nslug: {}\ndate: {}\ndesc: \"{}\"\n---\n\n",
-        title, slug, formatted_date, description
-    );
+    // Generate frontmatter (with optional category)
+    let frontmatter = if let Some(category) = &user_frontmatter.category {
+        format!(
+            "---\ntitle: {}\nslug: {}\ndate: {}\ndesc: \"{}\"\ncategory: {}\n---\n\n",
+            title, slug, formatted_date, description, category
+        )
+    } else {
+        format!(
+            "---\ntitle: {}\nslug: {}\ndate: {}\ndesc: \"{}\"\n---\n\n",
+            title, slug, formatted_date, description
+        )
+    };
 
     // Combine frontmatter and content
     let full_content = format!("{}{}", frontmatter, markdown);
@@ -318,6 +344,7 @@ fn extract_user_frontmatter(content: &str) -> (UserFrontmatter, String) {
                     "slug" => frontmatter.slug = Some(value),
                     "date" => frontmatter.date = Some(value),
                     "desc" => frontmatter.desc = Some(value),
+                    "category" => frontmatter.category = Some(value),
                     _ => {}
                 }
             }
@@ -331,37 +358,44 @@ fn extract_user_frontmatter(content: &str) -> (UserFrontmatter, String) {
         &lines[..]
     };
 
-    // Check for inline desc: in the first few lines (if no frontmatter desc was found)
-    let mut desc_line_idx: Option<usize> = None;
-    if frontmatter.desc.is_none() {
-        for (i, line) in content_lines.iter().enumerate() {
-            if i >= 5 {
-                break; // Only check first 5 lines
+    // Check for inline desc: and category: in the first few lines
+    let mut lines_to_remove: Vec<usize> = Vec::new();
+
+    for (i, line) in content_lines.iter().enumerate() {
+        if i >= 10 {
+            break; // Only check first 10 lines
+        }
+        let trimmed = line.trim();
+
+        // Check for desc: (if not already set)
+        if frontmatter.desc.is_none() && trimmed.starts_with("desc:") {
+            if let Some(colon_idx) = trimmed.find(':') {
+                let value = strip_quotes(trimmed[colon_idx + 1..].trim());
+                lines_to_remove.push(i);
+                if !value.is_empty() {
+                    frontmatter.desc = Some(value);
+                }
             }
-            let trimmed = line.trim();
-            if trimmed.starts_with("desc:") {
-                if let Some(colon_idx) = trimmed.find(':') {
-                    let value = strip_quotes(trimmed[colon_idx + 1..].trim());
+        }
 
-                    // Always mark the line for removal
-                    desc_line_idx = Some(i);
-
-                    // Only set frontmatter.desc if value is non-empty
-                    if !value.is_empty() {
-                        frontmatter.desc = Some(value);
-                    }
-                    break;
+        // Check for category: (if not already set)
+        if frontmatter.category.is_none() && trimmed.starts_with("category:") {
+            if let Some(colon_idx) = trimmed.find(':') {
+                let value = strip_quotes(trimmed[colon_idx + 1..].trim());
+                lines_to_remove.push(i);
+                if !value.is_empty() {
+                    frontmatter.category = Some(value);
                 }
             }
         }
     }
 
-    // Remove the desc: line from content if we found one
-    let final_content = if let Some(idx) = desc_line_idx {
+    // Remove the desc: and category: lines from content
+    let final_content = if !lines_to_remove.is_empty() {
         content_lines
             .iter()
             .enumerate()
-            .filter(|(i, _)| *i != idx)
+            .filter(|(i, _)| !lines_to_remove.contains(i))
             .map(|(_, line)| *line)
             .collect::<Vec<_>>()
             .join("\n")
